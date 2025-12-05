@@ -6,14 +6,12 @@ import 'package:study_flow/models/log_manager.dart';
 class HomeTab extends StatefulWidget {
   final List<Subject> subjects;
   final List<Task> tasks;
-  final VoidCallback onStartStopwatch;
   final LogManager logManager;
 
   const HomeTab({
     super.key,
     required this.subjects,
     required this.tasks,
-    required this.onStartStopwatch,
     required this.logManager,
   });
 
@@ -77,8 +75,9 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
-  /// パステルカード（共通UI）
-  Widget pastelCard({
+  /// 共通：白カードUI
+  Widget _whiteCard({
+    required String title,
     required Widget child,
     EdgeInsets padding = const EdgeInsets.all(20),
   }) {
@@ -86,7 +85,7 @@ class _HomeTabState extends State<HomeTab> {
       margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
       padding: padding,
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF7F2),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: const [
           BoxShadow(
@@ -96,12 +95,22 @@ class _HomeTabState extends State<HomeTab> {
           )
         ],
       ),
-      child: child,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          child,
+        ],
+      ),
     );
   }
 
-  /// 🔥 今日やる計画タスク一覧（今日実行日のものだけ）
-  List<Widget> _buildTodayTaskWidgets(BuildContext context) {
+  /// 今日の計画タスク（今日実行日のものだけ）
+  Widget _buildTodayTasksSection(BuildContext context) {
     final todayTasks = widget.tasks.where((task) {
       return task.isPlanned &&
           task.dueDate != null &&
@@ -109,91 +118,98 @@ class _HomeTabState extends State<HomeTab> {
     }).toList();
 
     if (todayTasks.isEmpty) {
-      return const [
-        Text("今日やるべき計画タスクはありません"),
-      ];
+      return const Text(
+        "今日やるべき計画タスクはありません",
+        style: TextStyle(color: Colors.grey),
+      );
     }
 
-    return todayTasks.map((task) {
-      final todayPlan = task.todayAmount; // 今日のノルマ（残り全体 / 残り日数）
+    final List<Widget> rows = [];
+    for (int i = 0; i < todayTasks.length; i++) {
+      final task = todayTasks[i];
+      final todayPlan = task.todayAmount;
       final doneToday = _getTodayDoneForTask(task);
-      final remainingToday = (todayPlan - doneToday).clamp(0, double.infinity);
+      final remainingToday =
+          (todayPlan - doneToday).clamp(0, double.infinity);
 
       final unit = task.unit ?? "";
 
-      return Container(
-        margin: const EdgeInsets.symmetric(vertical: 6),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black12,
-              blurRadius: 3,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      rows.add(
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // タスク名 + 今日のノルマ & 進捗
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  task.title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+            // 左側：タスク名 & ノルマ
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    task.title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                Text(
-                  "今日のノルマ: ${todayPlan.toStringAsFixed(1)} $unit",
-                  style: const TextStyle(fontSize: 12),
-                ),
-                Text(
-                  "今日やった: $doneToday $unit / 残り: ${remainingToday.toStringAsFixed(1)} $unit",
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ],
-            ),
-
-            // 進捗入力ボタン
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFB2DFDB),
+                  const SizedBox(height: 4),
+                  Text(
+                    "今日のノルマ: ${todayPlan.toStringAsFixed(1)} $unit",
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  Text(
+                    "今日やった: $doneToday $unit / 残り: ${remainingToday.toStringAsFixed(1)} $unit",
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
               ),
-              onPressed: () {
-                _showDoneDialog(task, context);
-              },
-              child: const Text("進捗を記録"),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: () => _showDoneDialog(task, context),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                    vertical: 8, horizontal: 12),
+              ),
+              child: const Text(
+                "進捗を記録",
+                style: TextStyle(fontSize: 13),
+              ),
             ),
           ],
         ),
       );
-    }).toList();
+
+      if (i < todayTasks.length - 1) {
+        rows.add(const Divider(
+          height: 18,
+          thickness: 1,
+          color: Colors.black12,
+        ));
+      }
+    }
+
+    return Column(children: rows);
   }
 
-  /// 🔥 もうすぐ締切の通常タスク（isPlanned = false）
-  List<Widget> _buildUpcomingDeadlineTasks() {
+  /// もうすぐ締切の通常タスク
+  Widget _buildUpcomingDeadlineSection() {
     final normalTasks = widget.tasks.where((task) {
       return !task.isPlanned && task.dueDate != null;
     }).toList();
 
     if (normalTasks.isEmpty) {
-      return const [
-        Text("締切が近い通常タスクはありません"),
-      ];
+      return const Text(
+        "締切が近い通常タスクはありません",
+        style: TextStyle(color: Colors.grey),
+      );
     }
 
-    // 期限が近い順にソート
     normalTasks.sort((a, b) => a.dueDate!.compareTo(b.dueDate!));
-
     final top3 = normalTasks.take(3).toList();
 
-    return top3.map((task) {
+    final List<Widget> rows = [];
+    for (int i = 0; i < top3.length; i++) {
+      final task = top3[i];
+
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
       final due = DateTime(
@@ -212,46 +228,34 @@ class _HomeTabState extends State<HomeTab> {
         label = "あと$daysLeft日";
       }
 
-      return Container(
-        margin: const EdgeInsets.symmetric(vertical: 6),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black12,
-              blurRadius: 3,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      rows.add(
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // タスク名 + 期限
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  task.title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+            // 左側
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    task.title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                Text(
-                  "期限: ${task.dueDate!.toLocal().toString().split(' ')[0]}",
-                  style: const TextStyle(fontSize: 12),
-                ),
-                Text(
-                  label,
-                  style: const TextStyle(fontSize: 12, color: Colors.red),
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  Text(
+                    "期限: ${task.dueDate!.toLocal().toString().split(' ')[0]}",
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  Text(
+                    label,
+                    style: const TextStyle(fontSize: 12, color: Colors.red),
+                  ),
+                ],
+              ),
             ),
-
-            // チェックボックス（完了済みかどうか）
             Checkbox(
               value: task.isCompleted,
               onChanged: (_) {
@@ -263,7 +267,17 @@ class _HomeTabState extends State<HomeTab> {
           ],
         ),
       );
-    }).toList();
+
+      if (i < top3.length - 1) {
+        rows.add(const Divider(
+          height: 18,
+          thickness: 1,
+          color: Colors.black12,
+        ));
+      }
+    }
+
+    return Column(children: rows);
   }
 
   @override
@@ -275,77 +289,25 @@ class _HomeTabState extends State<HomeTab> {
     return SafeArea(
       child: ListView(
         children: [
-          // 今日の勉強時間カード
-          pastelCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "今日の勉強時間",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  "$todayHours 時間 $todayRemainMinutes 分",
-                  style: const TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // 今日の計画タスク
-          pastelCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "今日のタスク（計画）",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                ..._buildTodayTaskWidgets(context),
-              ],
-            ),
-          ),
-
-          // もうすぐ締切の通常タスク
-          pastelCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "もうすぐ締切のタスク（通常）",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                ..._buildUpcomingDeadlineTasks(),
-              ],
-            ),
-          ),
-
-          // ストップウォッチ開始ボタン
-          pastelCard(
-            padding: const EdgeInsets.all(30),
-            child: Center(
-              child: ElevatedButton(
-                onPressed: widget.onStartStopwatch,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFB2DFDB),
-                  shape: const StadiumBorder(),
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 16,
-                    horizontal: 40,
-                  ),
-                ),
-                child: const Text(
-                  "ストップウォッチを開始",
-                  style: TextStyle(fontSize: 18),
-                ),
+          _whiteCard(
+            title: "今日の勉強時間",
+            child: Text(
+              "$todayHours 時間 $todayRemainMinutes 分",
+              style: const TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
               ),
             ),
+          ),
+
+          _whiteCard(
+            title: "今日のタスク（計画）",
+            child: _buildTodayTasksSection(context),
+          ),
+
+          _whiteCard(
+            title: "もうすぐ締切のタスク（通常）",
+            child: _buildUpcomingDeadlineSection(),
           ),
         ],
       ),

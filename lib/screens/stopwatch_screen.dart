@@ -47,11 +47,15 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
     return "${minutes.toString().padLeft(2, '0')}:${remSec.toString().padLeft(2, '0')}";
   }
 
-  /// ★ 学習時間の記録処理
   void _recordStudyTime() async {
     final ms = _stopwatch.elapsedMilliseconds;
-    final minutes = (ms / 60000).floor(); // 分に変換
-
+    final minutes = (ms / 60000).floor(); 
+    if (widget.subjects.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("科目が登録されていません。メニューから科目を追加してください。")),
+      );
+      return;
+    }
     if (minutes == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("1分以上計測してください")),
@@ -61,7 +65,6 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
 
     Subject? selected;
 
-    // ▼ 科目選択ダイアログ
     await showDialog(
       context: context,
       builder: (context) {
@@ -87,17 +90,15 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
     );
 
     if (selected != null) {
-      // ★ ログ記録
+
       widget.logManager.addStudyTime(selected!.name, minutes);
 
-      // UI 更新
       widget.onStudyRecorded(widget.subjects);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("${selected!.name} に $minutes 分を記録しました！")),
       );
 
-      // ★ ストップウォッチリセット
       _stopwatch.reset();
       setState(() {});
     }
@@ -118,7 +119,6 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            // ★ ホーム（前の画面）に戻る
             Navigator.pop(context);
           },
         ),
@@ -136,7 +136,6 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
             ),
             const SizedBox(height: 40),
 
-            // ボタン群
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -168,7 +167,6 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
 
             const SizedBox(height: 20),
 
-            // ★ 記録ボタン
             ElevatedButton(
               onPressed: _stopwatch.isRunning ? null : _recordStudyTime,
               style: ElevatedButton.styleFrom(

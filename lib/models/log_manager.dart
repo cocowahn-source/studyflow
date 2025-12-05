@@ -4,14 +4,12 @@ import 'learning_log.dart';
 class LogManager {
   final Map<DateTime, LearningLog> _logs = {};
 
-  // ★ Hive の Box
   final Box _box = Hive.box('learning_logs');
 
   LogManager() {
     _loadFromHive();
   }
 
-  /// ★ 起動時に Hive から全ログ読み込み
   void _loadFromHive() {
     for (final key in _box.keys) {
       final raw = _box.get(key);
@@ -22,18 +20,15 @@ class LogManager {
       }
     }
 
-    // ★ 読み込んだ件数を表示
     print('Loaded logs count: ${_logs.length}');
   }
 
-  /// ★ 1件のログを Hive に保存
   void _saveToHive(LearningLog log) {
     final key = LearningLog.keyFromDate(log.date);
     _box.put(key, log.toMap());
     print('Saved log for $key : ${log.totalMinutes} 分');
   }
 
-  /// 今日のログを返す（なければ作成）
   LearningLog getTodayLog() {
     final today = LearningLog.normalizeDate(DateTime.now());
 
@@ -45,7 +40,6 @@ class LogManager {
     return _logs[today]!;
   }
 
-  /// 勉強時間（分）を追加
   void addStudyTime(String subjectName, int minutes) {
     final log = getTodayLog();
     log.timeBySubject[subjectName] =
@@ -53,7 +47,6 @@ class LogManager {
     _saveToHive(log);
   }
 
-  /// タスク実績（ページ/回）を追加
   void addTaskProgress(String taskTitle, int amount) {
     final log = getTodayLog();
     log.amountByTask[taskTitle] =
@@ -61,6 +54,48 @@ class LogManager {
     _saveToHive(log);
   }
 
-  /// ログ全体（STATUS 画面用）
   Map<DateTime, LearningLog> get allLogs => _logs;
+
+  // ----------------------------------------------------------------------
+  // ★ 追加した便利メソッド
+  // ----------------------------------------------------------------------
+
+  /// 今日の科目別勉強時間（例： {"英語": 30, "数学": 20}）
+  Map<String, int> getTodayMinutesBySubject() {
+    final todayLog = getTodayLog();
+    return Map<String, int>.from(todayLog.timeBySubject);
+  }
+
+  /// 全期間の科目別合計勉強時間（例： {"英語": 120, "数学": 90}）
+  Map<String, int> getTotalMinutesBySubject() {
+    final Map<String, int> totals = {};
+
+    for (final log in _logs.values) {
+      log.timeBySubject.forEach((subject, minutes) {
+        totals[subject] = (totals[subject] ?? 0) + minutes;
+      });
+    }
+
+    return totals;
+  }
+
+  /// 直近7日間の日付 → 合計勉強時間
+  Map<DateTime, int> getLast7DaysTotalMinutes() {
+    final Map<DateTime, int> results = {};
+
+    final now = DateTime.now();
+
+    for (int i = 0; i < 7; i++) {
+      final date = LearningLog.normalizeDate(
+        DateTime(now.year, now.month, now.day - i),
+      );
+
+      final log = _logs[date];
+      final total = log?.timeBySubject.values.fold(0, (a, b) => a + b) ?? 0;
+
+      results[date] = total;
+    }
+
+    return results;
+  }
 }
