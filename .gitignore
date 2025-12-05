@@ -1,43 +1,8 @@
-# Flutter/Dart/Pub stuff:
 .dart_tool/
-.packages
-.pub-cache/
-.pub/
-build/
-
-# Android-specific
-**/android/**/gradle-wrapper.jar
-**/android/**/gradlew
-**/android/**/gradlew.bat
-**/android/**/local.properties
-**/android/**/.gradle/
-**/android/**/build/
-
-# iOS-specific
-**/ios/**/Pods/
-**/ios/**/.symlinks/
-**/ios/**/Flutter/Flutter.framework/
-**/ios/**/Flutter/Flutter.podspec
-**/ios/**/Flutter/Generated.xcconfig
-**/ios/**/build/
-
-# macOS / Windows / Linux builds
-macos/
-windows/
-linux/
-
-# Web platform build output
-build/web/
-
-# VS Code / IDE files
-.vscode/
 .idea/
-*.iml
-
-# System files
+.vscode/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
 .DS_Store
-Thumbs.db
-
-# Hive local storage
-*.hive
-*.lock
