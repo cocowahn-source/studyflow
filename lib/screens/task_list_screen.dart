@@ -77,92 +77,82 @@ class _TaskListScreenState extends State<TaskListScreen> {
   Widget build(BuildContext context) {
     final tasks = widget.taskManager.allTasks;
 
-    return Column(
+    return Stack(
       children: [
-        Container(
-          color: const Color(0xFFB2DFDB),
-          padding: const EdgeInsets.all(16),
-          width: double.infinity,
-          child: const Text(
-            "タスク一覧",
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center,
-          ),
-        ),
-        Expanded(
-          child: tasks.isEmpty
-              ? const Center(
-                  child: Text(
-                    'まだタスクがありません',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                )
-              : ListView.builder(
-                  itemCount: tasks.length,
-                  itemBuilder: (context, index) {
-                    final task = tasks[index];
-                    final isPlanned = task.isPlanned;
-                    final planText = _buildPlanDescription(task);
+        // タスクリスト本体
+        if (tasks.isEmpty)
+          const Center(
+            child: Text(
+              'まだタスクがありません',
+              style: TextStyle(fontSize: 16),
+            ),
+          )
+        else
+          ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+            itemCount: tasks.length,
+            itemBuilder: (context, index) {
+              final task = tasks[index];
+              final isPlanned = task.isPlanned;
+              final planText = _buildPlanDescription(task);
 
-                    return Card(
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      color: task.isCompleted
-                          ? Colors.green[50]
-                          : Colors.white,
-                      child: ListTile(
-                        onTap: () => _navigateToEditTask(task), // ★ タップで編集
-                        title: Text(
-                          task.title,
+              return Card(
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                color: task.isCompleted ? Colors.green[50] : Colors.white,
+                child: ListTile(
+                  onTap: () => _navigateToEditTask(task), // タップで編集
+                  title: Text(
+                    task.title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      decoration: task.isCompleted
+                          ? TextDecoration.lineThrough
+                          : TextDecoration.none,
+                    ),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4, bottom: 2),
+                        child: Text(
+                          isPlanned ? "計画タスク" : "通常タスク",
                           style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            decoration: task.isCompleted
-                                ? TextDecoration.lineThrough
-                                : TextDecoration.none,
+                            fontSize: 12,
+                            color: isPlanned
+                                ? Colors.deepPurple
+                                : Colors.grey[700],
                           ),
                         ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding:
-                                  const EdgeInsets.only(top: 4, bottom: 2),
-                              child: Text(
-                                isPlanned ? "計画タスク" : "通常タスク",
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isPlanned
-                                      ? Colors.deepPurple
-                                      : Colors.grey[700],
-                                ),
-                              ),
-                            ),
-                            if (isPlanned && planText.isNotEmpty)
-                              Text(
-                                planText,
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                            if (task.dueDate != null)
-                              Text(
-                                "期限: ${task.dueDate!.toLocal().toString().split(' ')[0]}",
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                          ],
-                        ),
-                        trailing: Checkbox(
-                          value: task.isCompleted,
-                          onChanged: (_) => _toggleTaskCompletion(task),
-                        ),
                       ),
-                    );
-                  },
+                      if (isPlanned && planText.isNotEmpty)
+                        Text(
+                          planText,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      if (task.dueDate != null)
+                        Text(
+                          "期限: ${task.dueDate!.toLocal().toString().split(' ')[0]}",
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                    ],
+                  ),
+                  trailing: Checkbox(
+                    value: task.isCompleted,
+                    onChanged: (_) => _toggleTaskCompletion(task),
+                  ),
                 ),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 16),
+              );
+            },
+          ),
+
+        // 右下にぷかっと浮いてる + ボタン
+        Positioned(
+          bottom: 16,
+          right: 16,
           child: FloatingActionButton(
             onPressed: _navigateToAddTask,
             child: const Icon(Icons.add),

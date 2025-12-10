@@ -21,102 +21,78 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
   final TaskManager taskManager = TaskManager();
-  final LogManager logManager = LogManager(); 
+  final LogManager logManager = LogManager();
 
   late Box _subjectsBox;
 
-  late List<Subject> subjects = [
-    Subject(
-      id: const Uuid().v4(),
-      name: "英語",
-      goalType: GoalType.time,
-      goalAmount: 600,
-      deadline: DateTime.now().add(const Duration(days: 30)),
-      color: Subject.presetColors[0],
-    ),
-    Subject(
-      id: const Uuid().v4(),
-      name: "数学",
-      goalType: GoalType.time,
-      goalAmount: 600,
-      deadline: DateTime.now().add(const Duration(days: 30)),
-      color: Subject.presetColors[1],
-    ),
-  ];
+  late List<Subject> subjects = [];
 
-    @override
+  @override
   void initState() {
     super.initState();
-    // main.dart で openBox 済みなので、そのインスタンスを取得するだけ
     _subjectsBox = Hive.box('subjects');
     _loadSubjects();
   }
 
-void _loadSubjects() {
-  try {
-    final saved = _subjectsBox.get('subjects'); // 何もなければ null
+  void _loadSubjects() {
+    try {
+      final saved = _subjectsBox.get('subjects'); // 何もなければ null
 
-    if (saved is List) {
-      subjects = saved.map((e) {
-        if (e is Map) {
-          // fromMap 内部で DateTime / String 両方対応
-          return Subject.fromMap(Map<dynamic, dynamic>.from(e));
-        } else {
-          throw Exception('Invalid subject data element: $e');
-        }
-      }).toList();
-    } else {
-      // 型が List じゃない場合も含めてデフォルトに戻す
+      if (saved is List) {
+        subjects = saved.map((e) {
+          if (e is Map) {
+            return Subject.fromMap(Map<dynamic, dynamic>.from(e));
+          } else {
+            throw Exception('Invalid subject data element: $e');
+          }
+        }).toList();
+      } else {
+        _setDefaultSubjects();
+      }
+    } catch (e) {
+      print('Failed to load subjects: $e');
       _setDefaultSubjects();
     }
-  } catch (e) {
-    // ここに来たら一旦全部捨ててデフォルトに戻す
-    print('Failed to load subjects: $e');
-    _setDefaultSubjects();
   }
-}
 
-/// デフォルト科目を設定して保存
-void _setDefaultSubjects() {
-  subjects = [
-    Subject(
-      id: const Uuid().v4(),
-      name: "英語",
-      goalType: GoalType.time,
-      goalAmount: 600,
-      deadline: DateTime.now().add(const Duration(days: 30)),
-      color: Subject.presetColors[0],
-    ),
-    Subject(
-      id: const Uuid().v4(),
-      name: "数学",
-      goalType: GoalType.time,
-      goalAmount: 600,
-      deadline: DateTime.now().add(const Duration(days: 30)),
-      color: Subject.presetColors[1],
-    ),
-  ];
-  _saveSubjects();
-}
-
+  void _setDefaultSubjects() {
+    subjects = [
+      Subject(
+        id: const Uuid().v4(),
+        name: "英語",
+        goalType: GoalType.time,
+        goalAmount: 600,
+        deadline: DateTime.now().add(const Duration(days: 30)),
+        color: Subject.presetColors[0],
+      ),
+      Subject(
+        id: const Uuid().v4(),
+        name: "数学",
+        goalType: GoalType.time,
+        goalAmount: 600,
+        deadline: DateTime.now().add(const Duration(days: 30)),
+        color: Subject.presetColors[1],
+      ),
+    ];
+    _saveSubjects();
+  }
 
   void _saveSubjects() {
     final data = subjects.map((s) => s.toMap()).toList();
     _subjectsBox.put('subjects', data);
   }
 
-
   void _addSubject(String name) {
     setState(() {
-      final nextColor = Subject.presetColors[
-        subjects.length % Subject.presetColors.length
-      ];
+      final nextColor =
+          Subject.presetColors[subjects.length % Subject.presetColors.length];
+
       subjects.add(
         Subject(
           id: const Uuid().v4(),
           name: name,
           goalType: GoalType.time,
-          goalAmount: 600, 
+          goalAmount: 600,
           deadline: DateTime.now().add(const Duration(days: 30)),
           color: nextColor,
         ),
@@ -132,6 +108,25 @@ void _setDefaultSubjects() {
     });
   }
 
+  PreferredSizeWidget _buildAppBar() {
+    const barColor = Color(0xFFB2DFDB);
+
+    if (_selectedIndex == 1) {
+      // タスクタブ：タイトルを表示
+      return AppBar(
+        backgroundColor: barColor,
+        title: const Text('タスク一覧'),
+        centerTitle: false,
+      );
+    } else {
+      // ホーム & 統計タブ：うす緑のラインだけ
+      return AppBar(
+        backgroundColor: barColor,
+        toolbarHeight: 4, // 細いラインにする
+        elevation: 0,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -149,17 +144,7 @@ void _setDefaultSubjects() {
     ];
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('StudyFlow'),
-        leading: Builder(
-          builder: (context) {
-            return IconButton(
-              icon: const Icon(Icons.menu),
-              onPressed: () => Scaffold.of(context).openDrawer(),
-            );
-          },
-        ),
-      ),
+      appBar: _buildAppBar(),
       drawer: Drawer(
         child: ListView(
           children: [
@@ -173,7 +158,7 @@ void _setDefaultSubjects() {
               leading: const Icon(Icons.book),
               title: const Text('科目の編集'),
               onTap: () {
-                Navigator.pop(context); // Drawer を閉じる
+                Navigator.pop(context);
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -191,7 +176,8 @@ void _setDefaultSubjects() {
       ),
       body: screens[_selectedIndex],
 
-floatingActionButton: _selectedIndex == 0
+      // ホームタブだけストップウォッチボタン
+      floatingActionButton: _selectedIndex == 0
           ? FloatingActionButton(
               onPressed: () {
                 Navigator.push(
@@ -205,11 +191,11 @@ floatingActionButton: _selectedIndex == 0
                   ),
                 );
               },
-              backgroundColor: Colors.teal, // ティール色
+              backgroundColor: Colors.teal,
               child: const Icon(
                 Icons.timer,
                 color: Colors.white,
-                ),
+              ),
             )
           : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
@@ -233,6 +219,5 @@ floatingActionButton: _selectedIndex == 0
         ],
       ),
     );
-
   }
 }

@@ -20,23 +20,20 @@ class HomeTab extends StatefulWidget {
 }
 
 class _HomeTabState extends State<HomeTab> {
-  /// 今日（≒一番新しいログ）の勉強時間（分）
+  /// 今日（= 今日の日付のログ）の総勉強時間（分）
   int _getTodayMinutes() {
     if (widget.logManager.allLogs.isEmpty) return 0;
-
-    final latestEntry = widget.logManager.allLogs.entries.reduce(
-      (a, b) => a.key.isAfter(b.key) ? a : b,
-    );
-
-    return latestEntry.value.totalMinutes;
+    final todayLog = widget.logManager.getTodayLog();
+    return todayLog.totalMinutes;
   }
 
-  /// 今日、そのタスクで記録した量（ページ/回）
+  /// 今日、そのタスクで記録した量（ページ/回など）
   int _getTodayDoneForTask(Task task) {
     final todayLog = widget.logManager.getTodayLog();
     return todayLog.amountByTask[task.title] ?? 0;
   }
 
+  /// 進捗入力ダイアログ
   void _showDoneDialog(Task task, BuildContext context) {
     final controller = TextEditingController();
 
@@ -75,7 +72,7 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
-  /// 共通：白カードUI
+  /// 共通の白カード UI
   Widget _whiteCard({
     required String title,
     required Widget child,
@@ -86,12 +83,12 @@ class _HomeTabState extends State<HomeTab> {
       padding: padding,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: const [
           BoxShadow(
             color: Colors.black12,
-            blurRadius: 5,
-            offset: Offset(0, 3),
+            blurRadius: 6,
+            offset: Offset(0, 2),
           )
         ],
       ),
@@ -110,28 +107,53 @@ class _HomeTabState extends State<HomeTab> {
   }
 
   /// 今日の計画タスク（今日実行日のものだけ）
+  /// 今日のノルマを達成したタスクは表示しない
+  /// 残りノルマが多い順にソート
   Widget _buildTodayTasksSection(BuildContext context) {
-    final todayTasks = widget.tasks.where((task) {
+    // まずは「今日実行」の計画タスクだけ取ってくる
+    final allTodayTasks = widget.tasks.where((task) {
       return task.isPlanned &&
           task.dueDate != null &&
           task.isTodayExecutionDate();
     }).toList();
 
-    if (todayTasks.isEmpty) {
+    // 「今日のノルマ」を計算しつつ、達成済みは除外・残りノルマでソート
+    final List<_TodayTaskInfo> todayInfos = [];
+
+    for (final task in allTodayTasks) {
+      final todayPlan = task.todayAmount; // 今日のノルマ
+      final doneToday = _getTodayDoneForTask(task); // 今日やった量
+      final remainingToday = todayPlan - doneToday;
+
+      // ノルマを達成していればホームからは非表示
+      if (remainingToday <= 0) continue;
+
+      todayInfos.add(
+        _TodayTaskInfo(
+          task: task,
+          todayPlan: todayPlan,
+          doneToday: doneToday,
+          remainingToday: remainingToday,
+        ),
+      );
+    }
+
+    if (todayInfos.isEmpty) {
       return const Text(
         "今日やるべき計画タスクはありません",
         style: TextStyle(color: Colors.grey),
       );
     }
 
-    final List<Widget> rows = [];
-    for (int i = 0; i < todayTasks.length; i++) {
-      final task = todayTasks[i];
-      final todayPlan = task.todayAmount;
-      final doneToday = _getTodayDoneForTask(task);
-      final remainingToday =
-          (todayPlan - doneToday).clamp(0, double.infinity);
+    // 残りノルマが多い順にソート（大きい→小さい）
+    todayInfos.sort(
+      (a, b) => b.remainingToday.compareTo(a.remainingToday),
+    );
 
+    final List<Widget> rows = [];
+    for (int i = 0; i < todayInfos.length; i++) {
+      final info = todayInfos[i];
+      final task = info.task;
       final unit = task.unit ?? "";
 
       rows.add(
@@ -152,22 +174,23 @@ class _HomeTabState extends State<HomeTab> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    "今日のノルマ: ${todayPlan.toStringAsFixed(1)} $unit",
+                    "今日のノルマ: ${info.todayPlan.toStringAsFixed(1)} $unit",
                     style: const TextStyle(fontSize: 12),
                   ),
                   Text(
-                    "今日やった: $doneToday $unit / 残り: ${remainingToday.toStringAsFixed(1)} $unit",
+                    "今日やった: ${info.doneToday} $unit / 残り: ${info.remainingToday.toStringAsFixed(1)} $unit",
                     style: const TextStyle(fontSize: 12),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
+
             ElevatedButton(
               onPressed: () => _showDoneDialog(task, context),
               style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                    vertical: 8, horizontal: 12),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
               ),
               child: const Text(
                 "進捗を記録",
@@ -178,7 +201,7 @@ class _HomeTabState extends State<HomeTab> {
         ),
       );
 
-      if (i < todayTasks.length - 1) {
+      if (i < todayInfos.length - 1) {
         rows.add(const Divider(
           height: 18,
           thickness: 1,
@@ -190,7 +213,7 @@ class _HomeTabState extends State<HomeTab> {
     return Column(children: rows);
   }
 
-  /// もうすぐ締切の通常タスク
+  /// もうすぐ締切の通常タスク（isPlanned = false）
   Widget _buildUpcomingDeadlineSection() {
     final normalTasks = widget.tasks.where((task) {
       return !task.isPlanned && task.dueDate != null;
@@ -203,13 +226,14 @@ class _HomeTabState extends State<HomeTab> {
       );
     }
 
+    // 期限が近い順にソート
     normalTasks.sort((a, b) => a.dueDate!.compareTo(b.dueDate!));
-    final top3 = normalTasks.take(3).toList();
 
+    final top3 = normalTasks.take(3).toList();
     final List<Widget> rows = [];
+
     for (int i = 0; i < top3.length; i++) {
       final task = top3[i];
-
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
       final due = DateTime(
@@ -230,9 +254,7 @@ class _HomeTabState extends State<HomeTab> {
 
       rows.add(
         Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 左側
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -251,7 +273,10 @@ class _HomeTabState extends State<HomeTab> {
                   ),
                   Text(
                     label,
-                    style: const TextStyle(fontSize: 12, color: Colors.red),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.red,
+                    ),
                   ),
                 ],
               ),
@@ -289,6 +314,7 @@ class _HomeTabState extends State<HomeTab> {
     return SafeArea(
       child: ListView(
         children: [
+          // 今日の勉強時間カード
           _whiteCard(
             title: "今日の勉強時間",
             child: Text(
@@ -300,11 +326,13 @@ class _HomeTabState extends State<HomeTab> {
             ),
           ),
 
+          // 今日の計画タスク
           _whiteCard(
             title: "今日のタスク（計画）",
             child: _buildTodayTasksSection(context),
           ),
 
+          // もうすぐ締切の通常タスク
           _whiteCard(
             title: "もうすぐ締切のタスク（通常）",
             child: _buildUpcomingDeadlineSection(),
@@ -313,4 +341,19 @@ class _HomeTabState extends State<HomeTab> {
       ),
     );
   }
+}
+
+/// 「今日のタスク」表示用の内部クラス
+class _TodayTaskInfo {
+  final Task task;
+  final double todayPlan;
+  final int doneToday;
+  final double remainingToday;
+
+  _TodayTaskInfo({
+    required this.task,
+    required this.todayPlan,
+    required this.doneToday,
+    required this.remainingToday,
+  });
 }

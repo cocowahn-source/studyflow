@@ -64,18 +64,19 @@ class StatusScreen extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // ① 今日の総勉強時間（カード）
+          // ① 今日の総勉強時間
           _whiteCard(
             title: "今日の総勉強時間",
             child: Text(
               "${todayTotal ~/ 60} 時間 ${todayTotal % 60} 分",
-              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+              style:
+                  const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
             ),
           ),
 
           const SizedBox(height: 20),
 
-          // ② 今日の科目別勉強時間（カードの中で線区切り）
+          // ② 今日の科目別勉強時間
           _whiteCard(
             title: "今日の科目別勉強時間",
             child: todayBySubject.isEmpty
@@ -90,7 +91,22 @@ class StatusScreen extends StatelessWidget {
 
           const SizedBox(height: 20),
 
-          // ③ 今週の勉強時間（カード）
+          // ③ 科目別累計勉強時間（←ここを今週より前に）
+          _whiteCard(
+            title: "科目別累計勉強時間",
+            child: totalBySubject.isEmpty
+                ? const Text(
+                    "まだ勉強ログがありません",
+                    style: TextStyle(color: Colors.grey),
+                  )
+                : Column(
+                    children: _buildSeparatedList(totalBySubject),
+                  ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // ④ 今週の勉強時間（分）
           _whiteCard(
             title: "今週の勉強時間（分）",
             child: SizedBox(
@@ -121,22 +137,7 @@ class StatusScreen extends StatelessWidget {
 
           const SizedBox(height: 20),
 
-          // ④ 科目別累計勉強時間（カードの中で線区切り）
-          _whiteCard(
-            title: "科目別累計勉強時間",
-            child: totalBySubject.isEmpty
-                ? const Text(
-                    "まだ勉強ログがありません",
-                    style: TextStyle(color: Colors.grey),
-                  )
-                : Column(
-                    children: _buildSeparatedList(totalBySubject),
-                  ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // ⑤ 今月の日別勉強時間（カード）
+          // ⑤ 今月の日別勉強時間（分）
           _whiteCard(
             title: "今月の日別勉強時間（分）",
             child: SizedBox(
@@ -197,36 +198,36 @@ class StatusScreen extends StatelessWidget {
     );
   }
 
-  // グレーの線で区切られた「科目名＋分数」のリスト
+  // グレーの線で区切られた「科目カラー丸 + 科目名 + 分数」のリスト
   List<Widget> _buildSeparatedList(Map<String, int> data) {
     final entries = data.entries.toList();
+
     return [
       for (int i = 0; i < entries.length; i++) ...[
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-          // ★ 科目カラー丸アイコン
-          CircleAvatar(
-            radius: 6,
-            backgroundColor: subjects
-                .firstWhere((s) => s.name == entries[i].key)
-                .colorObj,
-          ),
-          const SizedBox(width: 8),
-
-          // ★ 科目名（左側に寄せる）
-          Expanded(
-            child: Text(
-              entries[i].key,
-              style: const TextStyle(fontSize: 16),
+            // 科目カラー丸
+            CircleAvatar(
+              radius: 6,
+              backgroundColor: _findSubjectColor(entries[i].key),
             ),
-          ),            
+            const SizedBox(width: 8),
+
+            // 科目名
+            Expanded(
+              child: Text(
+                entries[i].key,
+                style: const TextStyle(fontSize: 16),
+              ),
+            ),
+
+            // 分数
             Text(
               "${entries[i].value} 分",
               style: const TextStyle(
-                fontSize: 18, 
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
-              )
+              ),
             ),
           ],
         ),
@@ -238,5 +239,13 @@ class StatusScreen extends StatelessWidget {
           ),
       ]
     ];
+  }
+
+  Color _findSubjectColor(String subjectName) {
+    final subject = subjects.where((s) => s.name == subjectName);
+    if (subject.isNotEmpty) {
+      return subject.first.colorObj;
+    }
+    return Colors.grey; // 見つからなかったときの予備色
   }
 }
