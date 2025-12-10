@@ -115,15 +115,18 @@ class _HomeScreenState extends State<HomeScreen> {
       // タスクタブ：タイトルを表示
       return AppBar(
         backgroundColor: barColor,
-        title: const Text('タスク一覧'),
+        elevation: 0,
+        title: const SizedBox.shrink(),
         centerTitle: false,
       );
     } else {
       // ホーム & 統計タブ：うす緑のラインだけ
       return AppBar(
         backgroundColor: barColor,
-        toolbarHeight: 4, // 細いラインにする
+        toolbarHeight: 56, // 細いラインにする
         elevation: 0,
+        title: const SizedBox.shrink(),
+        centerTitle: false,
       );
     }
   }

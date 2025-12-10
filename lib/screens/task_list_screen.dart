@@ -149,13 +149,17 @@ class _TaskListScreenState extends State<TaskListScreen> {
             },
           ),
 
-        // 右下にぷかっと浮いてる + ボタン
+        // 右下にぷかっと浮いてる + ボタン（ホームと同じ色）
         Positioned(
           bottom: 16,
           right: 16,
           child: FloatingActionButton(
             onPressed: _navigateToAddTask,
-            child: const Icon(Icons.add),
+            backgroundColor: Colors.teal,
+            child: const Icon(
+              Icons.add,
+              color: Colors.white,
+            ),
           ),
         ),
       ],
